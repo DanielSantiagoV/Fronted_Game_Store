@@ -51,21 +51,28 @@ function handleApiUrlChange(e) {
 // ===== Funciones de Productos =====
 async function loadProducts() {
     try {
+        console.log('🔄 Cargando productos desde:', `${API_URL}/productos`);
         const response = await fetch(`${API_URL}/productos`);
+        
+        console.log('📡 Respuesta recibida:', response.status, response.statusText);
         
         if (!response.ok) {
             throw new Error(`Error ${response.status}: No se pudo conectar con el backend`);
         }
 
         const data = await response.json();
-        productos = Array.isArray(data) ? data : (data.productos || []);
+        console.log('📦 Datos recibidos:', data);
+        
+        // Nuestro backend devuelve { message: "...", productos: [...] }
+        productos = data.productos || [];
+        console.log('📋 Productos procesados:', productos);
         
         renderProducts();
         updateProductSelect();
         updateStats();
         
     } catch (error) {
-        console.error('Error al cargar productos:', error);
+        console.error('❌ Error al cargar productos:', error);
         showNotification(`❌ Error: ${error.message}`, 'error');
         
         // Mostrar estado vacío
@@ -80,6 +87,7 @@ async function loadProducts() {
 }
 
 function renderProducts() {
+    console.log('🎨 Renderizando productos...');
     const productList = document.getElementById('productList');
     
     // Filtrar productos según el filtro seleccionado
@@ -87,7 +95,10 @@ function renderProducts() {
         ? productos 
         : productos.filter(p => p.tipo === currentFilter);
     
+    console.log('🔍 Productos filtrados:', filteredProducts);
+    
     if (filteredProducts.length === 0) {
+        console.log('📭 No hay productos para mostrar');
         productList.innerHTML = `
             <div class="empty-state col-span-full">
                 <div class="empty-icon">📦</div>
@@ -246,7 +257,8 @@ async function loadSales() {
         }
 
         const data = await response.json();
-        ventas = Array.isArray(data) ? data : (data.ventas || []);
+        // Nuestro backend devuelve { message: "...", ventas: [...] }
+        ventas = data.ventas || [];
         
         renderSales();
         updateStats();
@@ -289,8 +301,9 @@ function renderSales() {
             minute: '2-digit'
         });
         
-        const productoNombre = venta.producto?.nombre || venta.idProducto?.nombre || 'Producto eliminado';
-        const total = (venta.cantidad * venta.precioUnitario).toFixed(2);
+        // Nuestro backend devuelve la información del producto en productoInfo
+        const productoNombre = venta.productoInfo?.nombre || venta.producto?.nombre || 'Producto eliminado';
+        const total = venta.total || (venta.cantidadVendida * venta.precioUnitario).toFixed(2);
         
         return `
             <div class="sale-card animate__animated animate__fadeIn">
@@ -302,7 +315,7 @@ function renderSales() {
                 <div class="sale-details-grid">
                     <div class="sale-detail-item">
                         <div class="sale-detail-label">Cantidad</div>
-                        <div class="sale-detail-value">${venta.cantidad}</div>
+                        <div class="sale-detail-value">${venta.cantidadVendida}</div>
                     </div>
                     
                     <div class="sale-detail-item">
@@ -312,7 +325,7 @@ function renderSales() {
                     
                     <div class="sale-detail-item">
                         <div class="sale-detail-label">Total</div>
-                        <div class="sale-detail-value text-green-400">$${total}</div>
+                        <div class="sale-detail-value text-green-400">$${parseFloat(total).toFixed(2)}</div>
                     </div>
                 </div>
             </div>
@@ -380,8 +393,8 @@ async function handleSaleSubmit(e) {
     }
     
     const ventaData = {
-        idProducto: productoId,
-        cantidad: cantidad
+        producto: productoId,
+        cantidadVendida: cantidad
     };
     
     try {
@@ -399,7 +412,7 @@ async function handleSaleSubmit(e) {
             throw new Error(data.message || data.errors?.[0]?.msg || 'Error al registrar venta');
         }
         
-        const total = (data.venta?.cantidad * data.venta?.precioUnitario).toFixed(2);
+        const total = (data.venta?.cantidadVendida * data.venta?.precioUnitario).toFixed(2);
         showNotification(`✅ Venta registrada exitosamente - Total: $${total}`, 'success');
         
         document.getElementById('saleForm').reset();
